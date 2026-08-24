@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  background: #0f4a38;
+  color: #172033;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  min-height: 100vh;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+html.dark,
+html.dark body {
+  background: #101a2c;
+  color: #dbe4ef;
+}
+
+html.dark .bg-white {
+  background-color: #18253a;
+}
+
+html.dark .bg-white\/70,
+html.dark .bg-white\/55 {
+  background-color: rgb(24 37 58 / 0.9);
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/70,
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-100 {
+  background-color: #202f46;
+}
+
+html.dark .bg-emerald-50 {
+  background-color: rgb(16 185 129 / 0.14);
+}
+
+html.dark .bg-rose-50 {
+  background-color: rgb(244 63 94 / 0.14);
+}
+
+html.dark .bg-amber-50 {
+  background-color: rgb(245 158 11 / 0.14);
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800 {
+  color: #f1f5f9;
+}
+
+html.dark .text-slate-700 {
+  color: #dbe4ef;
+}
+
+html.dark .text-slate-600 {
+  color: #c0cad8;
+}
+
+html.dark .text-slate-500 {
+  color: #9cabc0;
+}
+
+html.dark .text-slate-400 {
+  color: #8392a8;
+}
+
+html.dark .text-slate-300 {
+  color: #6b7c93;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-100\/80 {
+  border-color: #26364f;
+}
+
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  border-color: #34455f;
+}
+
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #26364f;
+}
+
+html.dark .hover\:bg-white:hover {
+  background-color: #202f46;
+}
+
+html.dark .hover\:bg-rose-100:hover {
+  background-color: rgb(244 63 94 / 0.22);
+}
+
+html.dark .hover\:bg-emerald-50:hover,
+html.dark .group:hover .group-hover\:bg-emerald-50 {
+  background-color: rgb(16 185 129 / 0.14);
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  color-scheme: dark;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: #cbd5e1;
+  background-clip: padding-box;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+  background-clip: padding-box;
+}
