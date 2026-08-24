@@ -62,6 +62,8 @@ The local bootstrap credentials documented in `README.md` are development-only; 
 
 In a handoff or pull request, state the user-visible outcome, files changed, authorization or scope effects, database/migration impact, and the exact verification performed. Call out assumptions, deferred owner decisions, and known limitations.
 
+Follow YAGNI, KISS, and DRY. Build only what the current task needs, pick the simple option, and keep one canonical source for each piece of logic (especially permission names and RBAC rules — see below).
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
