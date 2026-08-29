@@ -1,12 +1,14 @@
-import { asc, count, eq, like, or } from "drizzle-orm";
+import { and, asc, count, eq, like, or } from "drizzle-orm";
 
 import { db } from "@/db";
-import { auditLogs, clients } from "@/db/schema";
+import { auditLogs, clients, employeeClientAssignments } from "@/db/schema";
 import { ACTIONS } from "@/lib/rbac/actions";
+import { authorize } from "@/lib/rbac/authorize";
 import { requirePermissionForSession } from "@/lib/rbac/require-permission";
 import { RESOURCES } from "@/lib/rbac/resources";
 import {
   createClientInputSchema,
+  clientRecordInputSchema,
   paginatedListInputSchema,
   setClientStatusInputSchema,
   updateClientInputSchema,
@@ -16,7 +18,10 @@ import {
   isUniqueConstraintError,
   ServiceMutationError,
 } from "@/services/errors";
-import { requireAuthorizedServiceActor } from "@/services/security";
+import {
+  requireAuthorizedServiceActor,
+  requireValidServiceIdentity,
+} from "@/services/security";
 import type { PaginatedResult } from "@/services/types";
 
 export type ClientListItem = {
@@ -39,6 +44,18 @@ export async function listClients(
     resource: RESOURCES.CLIENTS,
     action: ACTIONS.VIEW,
   });
+  const identity = await requireValidServiceIdentity(input.sessionId);
+  const canViewAllClients = (
+    await authorize(
+      {
+        sessionId: input.sessionId,
+        clientId: null,
+        resource: RESOURCES.ADMIN_CONSOLE,
+        action: ACTIONS.VIEW,
+      },
+      { auditDenied: false },
+    )
+  ).allowed;
 
   const searchFilter = input.search
     ? or(
@@ -48,32 +65,132 @@ export async function listClients(
         like(clients.clientType, `%${input.search}%`),
       )
     : undefined;
-  const itemQuery = db
-    .select({
-      id: clients.id,
-      clientCode: clients.clientCode,
-      name: clients.name,
-      countryCode: clients.countryCode,
-      clientType: clients.clientType,
-      status: clients.status,
-      createdAt: clients.createdAt,
-    })
-    .from(clients);
-  const countQuery = db.select({ value: count() }).from(clients);
+  const selection = {
+    id: clients.id,
+    clientCode: clients.clientCode,
+    name: clients.name,
+    countryCode: clients.countryCode,
+    clientType: clients.clientType,
+    status: clients.status,
+    createdAt: clients.createdAt,
+  };
+  let items: ClientListItem[];
+  let totalRow: { value: number } | undefined;
 
-  const [items, [totalRow]] = await Promise.all([
-    (searchFilter ? itemQuery.where(searchFilter) : itemQuery)
-      .orderBy(asc(clients.name))
-      .limit(input.limit)
-      .offset(input.offset),
-    searchFilter ? countQuery.where(searchFilter) : countQuery,
-  ]);
+  if (canViewAllClients) {
+    const itemQuery = db.select(selection).from(clients);
+    const countQuery = db.select({ value: count() }).from(clients);
+    [items, [totalRow]] = await Promise.all([
+      (searchFilter ? itemQuery.where(searchFilter) : itemQuery)
+        .orderBy(asc(clients.name))
+        .limit(input.limit)
+        .offset(input.offset),
+      searchFilter ? countQuery.where(searchFilter) : countQuery,
+    ]);
+  } else {
+    const scopeFilter = and(
+      eq(employeeClientAssignments.userId, identity.userId),
+      eq(employeeClientAssignments.status, "active"),
+      eq(clients.status, "active"),
+      searchFilter,
+    );
+    [items, [totalRow]] = await Promise.all([
+      db
+        .select(selection)
+        .from(employeeClientAssignments)
+        .innerJoin(clients, eq(employeeClientAssignments.clientId, clients.id))
+        .where(scopeFilter)
+        .orderBy(asc(clients.name))
+        .limit(input.limit)
+        .offset(input.offset),
+      db
+        .select({ value: count() })
+        .from(employeeClientAssignments)
+        .innerJoin(clients, eq(employeeClientAssignments.clientId, clients.id))
+        .where(scopeFilter),
+    ]);
+  }
 
   return {
     items,
     total: totalRow?.value ?? 0,
     limit: input.limit,
     offset: input.offset,
+  };
+}
+
+export async function getClientDetails(rawInput: unknown) {
+  const input = clientRecordInputSchema.parse(rawInput);
+
+  await requirePermissionForSession(input.sessionId, {
+    clientId: null,
+    resource: RESOURCES.CLIENTS,
+    action: ACTIONS.VIEW,
+  });
+  const identity = await requireValidServiceIdentity(input.sessionId);
+  const canViewAllClients = (
+    await authorize(
+      {
+        sessionId: input.sessionId,
+        clientId: null,
+        resource: RESOURCES.ADMIN_CONSOLE,
+        action: ACTIONS.VIEW,
+      },
+      { auditDenied: false },
+    )
+  ).allowed;
+  const selection = {
+    id: clients.id,
+    clientCode: clients.clientCode,
+    name: clients.name,
+    countryCode: clients.countryCode,
+    clientType: clients.clientType,
+    status: clients.status,
+    createdAt: clients.createdAt,
+  };
+  const [client] = canViewAllClients
+    ? await db
+        .select(selection)
+        .from(clients)
+        .where(eq(clients.id, input.clientId))
+        .limit(1)
+    : await db
+        .select(selection)
+        .from(employeeClientAssignments)
+        .innerJoin(clients, eq(employeeClientAssignments.clientId, clients.id))
+        .where(
+          and(
+            eq(employeeClientAssignments.userId, identity.userId),
+            eq(employeeClientAssignments.clientId, input.clientId),
+            eq(employeeClientAssignments.status, "active"),
+            eq(clients.status, "active"),
+          ),
+        )
+        .limit(1);
+
+  if (!client) {
+    throw new ServiceMutationError(
+      "not_found",
+      "The selected client is unavailable.",
+    );
+  }
+
+  const [activeAssignment] = await db
+    .select({ id: employeeClientAssignments.id })
+    .from(employeeClientAssignments)
+    .where(
+      and(
+        eq(employeeClientAssignments.userId, identity.userId),
+        eq(employeeClientAssignments.clientId, client.id),
+        eq(employeeClientAssignments.status, "active"),
+      ),
+    )
+    .limit(1);
+
+  return {
+    ...client,
+    canEnterClientPortal: client.status === "active" && Boolean(activeAssignment),
+    canViewAllClients,
   };
 }
 

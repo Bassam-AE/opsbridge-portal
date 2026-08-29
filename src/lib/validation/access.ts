@@ -63,6 +63,13 @@ export const createUserInputSchema = z
     }
   });
 
+export const createCompanyUserInputSchema = z.object({
+  sessionId: serviceSessionSchema,
+  displayName: z.string().trim().min(2).max(100),
+  email: z.string().trim().toLowerCase().email().max(254),
+  username: optionalUsernameSchema,
+});
+
 export const setUserStatusInputSchema = z.object({
   sessionId: serviceSessionSchema,
   targetUserId: z.string().uuid("Invalid user identifier."),
@@ -101,6 +108,11 @@ export const setClientStatusInputSchema = z.object({
   sessionId: serviceSessionSchema,
   clientId: z.string().uuid("Invalid client identifier."),
   status: z.enum(["active", "inactive"]),
+});
+
+export const clientRecordInputSchema = z.object({
+  sessionId: serviceSessionSchema,
+  clientId: z.string().uuid("Invalid client identifier."),
 });
 
 export type PaginatedListInput = z.input<typeof paginatedListInputSchema>;

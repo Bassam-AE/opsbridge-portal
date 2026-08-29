@@ -2,7 +2,7 @@
 
 ## Project status
 
-The minimal TypeScript Next.js application and responsive Tailwind CSS dashboard shell have been initialized with `npm`. Current business-module routes remain presentation prototypes. Admin Console provides navigable, searchable, paginated database views for users, clients, assignments, memberships, roles and their exact permissions, user overrides, and audit logs through validated, independently authorized services. Authorized administrators can now create internal or client users with an initial role, disable or re-enable users, and create, edit, deactivate, or reactivate client companies.
+The minimal TypeScript Next.js application and responsive Tailwind CSS dashboard shell have been initialized with `npm`. Current business-module routes remain presentation prototypes. Admin Console provides navigable, searchable, paginated database views for users, clients, assignments, memberships, roles and their exact permissions, user overrides, and audit logs through validated, independently authorized services. Authorized administrators can create internal or client users with an initial role, manage user and client lifecycles, assign employees to client companies with a client-scoped role, manage client-user memberships, edit role-permission relationships, and create, edit, or revoke user-specific grants and restrictions.
 
 ## Local setup and login
 
@@ -12,26 +12,33 @@ npm run db:setup
 npm run dev
 ```
 
-Open `http://localhost:3000/login` and use the temporary local credentials:
+Open `http://localhost:3000/login` and use one of the temporary local accounts:
 
-```text
-Username: admin
-Password: admin
-```
+| Account | Username | Password |
+| --- | --- | --- |
+| Administrator | `admin` | `admin` |
+| Blindly Digital employee | `blindly` | `blindly` |
+| Client Company employee | `company` | `company` |
 
-The seed stores a scrypt password hash and does not reset an existing Admin password when rerun. These credentials are intentionally development-only and must be replaced before any shared or production deployment.
+The seed stores scrypt password hashes and does not reset an existing account's password when rerun. These credentials are intentionally development-only and must be replaced before any shared or production deployment.
 
 The current milestone is a secure MVP foundation. It will provide login, client-scoped role-based access control, access administration, and protected page skeletons.
 
 The canonical resource/action permission catalog and approved least-privilege role matrix are documented in `PERMISSIONS.md` and seeded in the local database. Admin Console visibility and direct-route access require `admin_console:view`; its user, client, role, permission, assignment, override, and audit reads each enforce their own resource permission again before querying SQLite.
 
-Admin Console writes use protected Server Actions and independently authorized service functions. User creation and role assignment occur in one transaction, client lifecycle changes are soft changes, every successful write creates an audit event, and disabling a user invalidates that user's sessions immediately. Newly created users have `invited` status and cannot sign in until the invitation/password-setup workflow is implemented.
+Admin Console writes use protected Server Actions and independently authorized service functions. User creation and role assignment occur in one transaction, client lifecycle changes are soft changes, every successful access-policy write creates an audit event, and disabling a user invalidates that user's sessions immediately. Permission definitions remain code-owned; the console only assigns existing definitions. The current administrator cannot edit the administrator's own provider role or user overrides. Role and override changes are read on every authorization decision and therefore apply immediately. Newly created users have `invited` status and cannot sign in until the invitation/password-setup workflow is implemented.
+
+Blindly Digital employees start with a static `Blindly Digital` provider-context card rather than a dropdown. The Clients page shows every company to administrators and only active assignments to other BD employees. Each row opens a client details page; an assigned employee can enter that client portal there and return to the BD portal from the header. The selected UUID is stored in an HTTP-only same-site cookie for interface continuity, but the cookie is treated as untrusted and never replaces service-level client-scope authorization. Removing or deactivating an assignment removes that client from the next rendered list immediately.
+
+Every module page independently enforces its canonical `resource:view` permission. Client-module sidebar links appear for BD employees only after they enter an actively assigned client. An administrator's provider permissions can still preview a module page shell by direct route, but this never grants client data access; records and mutations require normal service-level authorization for the exact active assignment or membership. Request-level integration coverage exercises valid and invalid login, disabled and invalid sessions, exact assignment and membership scope, Admin shell preview, direct service denial, logout invalidation, and audit records.
 
 ## Project purpose
 
 The portal will provide one application for the service provider's employees and its client companies.
 
 An internal employee can serve more than one client company. The system must limit that employee to assigned clients. A client user must be limited to the user's own company.
+
+Internal Blindly Digital employees work from provider context first, where administrators can see every client and other BD employees can see their assigned client list. Client-owned modules become available only after the employee enters an assigned company from its details page. Client-company employees enter their own company context directly and can access Dashboard, CRM, HRM, VMS, Vault, and Accounts according to their role; they cannot access the Clients page, provider-context card, BMS, Marketing, Internal Chat, or provider administration. Client Owners can create invited Employee accounts only in their own company.
 
 The complete product can later contain operational tools and workflows for client management, HR, vendors, accounts, marketing, documents, communication, requests, and progress tracking.
 
@@ -95,6 +102,8 @@ The following rules are mandatory:
 - A restriction has priority over a grant and a role permission.
 - An internal user can access only assigned client companies.
 - A client user can access only the user's own company.
+- A client user cannot access the Clients page, even if a stale role or override contains a Clients permission.
+- Client-company accounts are limited to Dashboard, CRM, HRM, VMS, Vault, and Accounts.
 - Missing permission means denied access.
 - Every page request, server mutation, Route Handler, and database operation must enforce authorization.
 - Hiding a button or menu item is not an authorization check.
@@ -194,7 +203,4 @@ The current milestone is complete when:
 
 ## Open decisions
 
-The following decisions remain open and can be resolved before their implementation step:
-
-1. Whether client administrators can create other client users in the MVP.
-2. Production session lifetime and password rules. The local authentication slice currently uses a configurable 12-hour session and the explicitly requested temporary `admin` password.
+Production session lifetime and password rules remain open. The local authentication slice currently uses a configurable 12-hour session and explicitly requested development-only passwords.

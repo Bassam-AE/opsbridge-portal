@@ -211,14 +211,24 @@ const noticeMessages: Record<string, string> = {
   client_created: "Client company created successfully.",
   client_updated: "Client company details updated successfully.",
   client_status_changed: "Client company status updated immediately.",
+  assignment_created: "Employee assignment created and access is effective immediately.",
+  assignment_updated: "Employee assignment role updated immediately.",
+  assignment_status_changed: "Employee assignment status updated immediately.",
+  membership_created: "Client-user membership created successfully.",
+  membership_updated: "Client-user membership updated immediately.",
+  membership_status_changed: "Client-user membership status updated immediately.",
+  role_permissions_updated: "Role permissions updated and effective immediately.",
+  override_created: "User grant or restriction created and effective immediately.",
+  override_updated: "User grant or restriction updated immediately.",
+  override_revoked: "User grant or restriction revoked immediately.",
 };
 
 const errorMessages: Record<string, string> = {
   validation: "Some submitted details were invalid. Review the form and try again.",
-  conflict: "That email, username, or client ID is already in use.",
+  conflict: "That value or access rule already exists.",
   not_found: "The record no longer exists. Refresh the page and try again.",
   invalid_relationship: "The selected role, account type, or client company is incompatible.",
-  self_access_change: "You cannot change the enabled status of your own account.",
+  self_access_change: "You cannot change your own account, role permissions, or access overrides.",
   permission_denied: "Your account does not have permission to perform that action.",
   unexpected: "The change could not be completed. Please try again.",
 };

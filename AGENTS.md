@@ -4,14 +4,14 @@
 
 This repository is a security-sensitive Service Operations Portal. Before making a change, read the documents relevant to the work. The documents below are authoritative; this file provides the working rules and does not replace them.
 
-| Document | Use it for |
-| --- | --- |
-| [README.md](README.md) | Product purpose, MVP scope, setup, and definition of done. |
-| [CLAUDE.md](CLAUDE.md) | Cross-agent coding conventions, architecture boundaries, and project command details. |
-| [AI_HANDOFF.md](AI_HANDOFF.md) | Current implementation status, locked decisions, implementation boundaries, and owner decisions that require confirmation. Read before planning or changing application code. |
-| [DATABASE.md](DATABASE.md) | Schema, database lifecycle, migrations, seed data, and SQLite constraints. Read before database or service changes. |
-| [PERMISSIONS.md](PERMISSIONS.md) | Canonical permission vocabulary, RBAC decision order, role matrix, and scope rules. Read before any protected route, server operation, service, or data-access change. |
-| [DESIGN.md](DESIGN.md) | Shell, responsive behavior, accessibility, components, and visual language. Read before UI or layout changes. |
+| Document                         | Use it for                                                                                                                                                                    |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [README.md](README.md)           | Product purpose, MVP scope, setup, and definition of done.                                                                                                                    |
+| [CLAUDE.md](CLAUDE.md)           | Cross-agent coding conventions, architecture boundaries, and project command details.                                                                                         |
+| [AI_HANDOFF.md](AI_HANDOFF.md)   | Current implementation status, locked decisions, implementation boundaries, and owner decisions that require confirmation. Read before planning or changing application code. |
+| [DATABASE.md](DATABASE.md)       | Schema, database lifecycle, migrations, seed data, and SQLite constraints. Read before database or service changes.                                                           |
+| [PERMISSIONS.md](PERMISSIONS.md) | Canonical permission vocabulary, RBAC decision order, role matrix, and scope rules. Read before any protected route, server operation, service, or data-access change.        |
+| [DESIGN.md](DESIGN.md)           | Shell, responsive behavior, accessibility, components, and visual language. Read before UI or layout changes.                                                                 |
 
 If instructions conflict, protect security and owner-approved locked decisions first. Ask the owner before deciding an item explicitly marked as requiring owner confirmation in `AI_HANDOFF.md`.
 
@@ -44,6 +44,7 @@ If instructions conflict, protect security and owner-approved locked decisions f
 5. Run the narrowest relevant checks, then run `npm run lint`, `npm run typecheck`, and `npm test` when the change warrants it. Report any checks not run or that fail.
 6. For database schema changes, generate a Drizzle migration with `npm run db:generate`; do not hand-edit generated migration output unless correcting a reviewed generation issue. Apply locally with the documented migration flow when appropriate.
 7. Do not commit secrets, local SQLite databases, session tokens, or production credentials. Keep `.env.example` limited to safe placeholders.
+8. After completing a task, tell the user how to test the changes. Keep it short.
 
 ## Commands
 
@@ -73,6 +74,7 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
 
 Before implementing:
+
 - State your assumptions explicitly. If uncertain, ask.
 - If multiple interpretations exist, present them - don't pick silently.
 - If a simpler approach exists, say so. Push back when warranted.
@@ -95,12 +97,14 @@ Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, sim
 **Touch only what you must. Clean up only your own mess.**
 
 When editing existing code:
+
 - Don't "improve" adjacent code, comments, or formatting.
 - Don't refactor things that aren't broken.
 - Match existing style, even if you'd do it differently.
 - If you notice unrelated dead code, mention it - don't delete it.
 
 When your changes create orphans:
+
 - Remove imports/variables/functions that YOUR changes made unused.
 - Don't remove pre-existing dead code unless asked.
 
@@ -111,11 +115,13 @@ The test: Every changed line should trace directly to the user's request.
 **Define success criteria. Loop until verified.**
 
 Transform tasks into verifiable goals:
+
 - "Add validation" → "Write tests for invalid inputs, then make them pass"
 - "Fix the bug" → "Write a test that reproduces it, then make it pass"
 - "Refactor X" → "Ensure tests pass before and after"
 
 For multi-step tasks, state a brief plan:
+
 ```
 1. [Step] → verify: [check]
 2. [Step] → verify: [check]
@@ -127,3 +133,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

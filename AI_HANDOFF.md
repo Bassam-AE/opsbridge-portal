@@ -17,6 +17,7 @@ This file records the decisions made with the project owner, the current technic
 - The business and RBAC planning document exists separately.
 - The first Drizzle migration has been generated and applied locally.
 - Database-backed Admin login, protected portal layout, and logout are implemented. The local bootstrap credentials are `admin` / `admin`, stored as a scrypt hash.
+- The development seed also creates `blindly` / `blindly` as an internal employee and `company` / `company` as a client Owner. Both are attached to the seeded `COMPANY` client through an employee assignment or client membership.
 - The centralized RBAC engine and server-side permission guard are implemented. It validates the exact session, active user, provider/client scope, user restrictions, user grants, and applicable role permissions on every decision, and audits denials.
 - The typed least-privilege role-permission matrix is owner-approved and seeded. The additive seed contains all canonical roles, permission definitions, and initial role-permission relationships.
 - Admin Console navigation visibility and direct page access enforce `admin_console:view` through the centralized authorization engine. Admin and CEO/CTO are the only initial roles with that permission.
@@ -24,7 +25,13 @@ This file records the decisions made with the project owner, the current technic
 - Admin Console cards link to protected drill-down routes for users, clients, employee assignments, client memberships, roles with exact permissions, user overrides, and audit logs. These views support search and pagination where applicable.
 - Admin Console now has protected user and client mutations. Authorized administrators can create internal or client users with a compatible initial role, disable or re-enable users, create and edit client companies, and deactivate or reactivate clients. Every mutation validates its input, re-authorizes in the service layer, derives the audit actor from the server session, and records the successful change transactionally.
 - New users intentionally start as `invited` with no password hash. Re-enabling a user without a password restores `invited`, not `active`. Disabling a user invalidates all of that user's sessions immediately, and administrators cannot change their own enabled status.
-- Assignment management, role-permission editing, and user grant/restriction mutations remain to be implemented. Their current Admin Console drill-downs are read-only.
+- Employee-client assignment and client-membership lifecycle management are implemented. Administrators can create relationships, change the applicable role, move a client membership, and deactivate or reactivate access. Relationship compatibility and self-access protection are checked in the service layer, and successful changes are transactional and audited.
+- Blindly Digital employees start in a static provider context. Administrators see every client; other BD employees see only active assignments. Client rows open details pages, where assigned employees can enter the client portal and later return to the BD portal. Client users are fixed to their own active membership and never see the Clients page or provider-context card. The persisted context cookie remains untrusted input, and assignment changes affect the next render and authorization decision without a permission cache.
+- Client Owners can list and create invited Employee accounts only for the company derived from their server session. The action accepts no client, account-type, or role choice from the browser, and the service re-derives all three values before writing and auditing the new membership.
+- Role-permission editing and user grant/restriction management are implemented. Authorized administrators can replace a role's assigned canonical permissions and create, edit, or revoke provider/client-scoped overrides. The service layer prevents current-role and current-user access changes, validates permission/scope compatibility and active client relationships, records each successful change transactionally, and makes it effective on the next authorization decision.
+- Access-management validation and SQLite integration tests cover role self-protection, immediate role-permission changes, restriction priority, grant changes, override revocation, expiry normalization, and audit-event creation.
+- Every business-module page independently enforces its canonical View permission. Client-module sidebar links appear for BD employees only after an assigned client is entered. Admin Console users can still preview a module shell by direct route when their provider role has both `admin_console:view` and that module's View permission. This preview never authorizes client data; services and mutations still require the exact assignment or membership.
+- Authentication and authorization boundary coverage includes valid/invalid login, disabled and invalid sessions, secure session cookies, logout invalidation, correct and incorrect internal assignments and client memberships, Admin shell preview with continued data-scope denial, client-list visibility, own-company user creation, direct service denial, and audit creation.
 - Schema export, linting, and type checks pass.
 - The selected direction is one full-stack Next.js application with SQLite.
 - Do not implement business module features until the owner starts a later milestone.
@@ -61,6 +68,8 @@ The access-control requirements are the primary engineering concern. Every page,
 - Deny access when no rule explicitly permits it.
 - Internal users can access only assigned clients.
 - Client users can access only their own company.
+- Blindly Digital employees start in provider context and receive client-module navigation only after selecting an actively assigned company.
+- Client-company users are limited to Dashboard, CRM, HRM, VMS, Vault, and Accounts. They cannot access the Clients page, BMS, Marketing, Internal Chat, or provider administration.
 - Protect both page routes and server-side operations.
 - Use one repository and one deployable application for the MVP.
 - Run SQLite on one application instance with persistent local storage.
@@ -78,10 +87,7 @@ The access-control requirements are the primary engineering concern. Every page,
 
 ## Decisions that require owner confirmation
 
-Do not silently decide these items:
-
-1. Whether client administrators can create other client users in the MVP.
-2. Production session lifetime and password rules. Authentication currently uses a configurable 12-hour local default and the owner-requested temporary Admin password.
+Do not silently decide production session lifetime and password rules. Authentication currently uses a configurable 12-hour local default and owner-requested development-only passwords.
 
 If one of these decisions blocks the current task, ask the owner. If it does not block the task, document the assumption and keep it easy to change.
 
@@ -365,7 +371,7 @@ It must support the current deliverables for:
 
 All access changes must create audit records. A user must not change the user's own access.
 
-Current Step 8 progress: user and client-company lifecycle operations are implemented. The remaining write slices are employee-client assignments, client memberships, role-permission relationships, and user grants/restrictions.
+Current Step 8 status: complete. User, client-company, employee-assignment, client-membership, role-permission, and user-override operations are implemented with independent service authorization, validation, self-access protection, transactions, and audit events.
 
 ### Step 9: Add protected page skeletons
 
@@ -375,6 +381,8 @@ Create one page file for each approved route. Each page must:
 2. Verify the page's View permission.
 3. Enforce client scope when a client is selected.
 4. Render only the page name unless an owner-approved presentation prototype is documented.
+
+Current Step 9 status: complete. Each module route uses the shared protected-page boundary with its canonical resource. Navigation visibility is derived from the centralized authorization engine. Admin Console users receive a permission-based page-shell preview for modules present in their provider role, while all client data access remains assignment-scoped in services.
 
 ### Step 10: Complete authorization tests
 
@@ -391,6 +399,10 @@ Add integration and browser tests for:
 - Direct Route Handler access.
 - Access-administration restrictions.
 - Audit-record creation.
+
+Current Step 10 status: request-level security coverage is complete for the implemented surface. Unit and SQLite integration tests cover authorization precedence, the initial role matrix, login/logout handlers, session cookies, disabled and invalid sessions, assignment/membership scope, direct service denial, immediate role and override changes, restriction priority, self-access protection, and audit creation. Live rendered-route checks also confirm unauthenticated redirect, signed-in out-of-scope denial, and permission-filtered navigation. The in-app browser driver is unavailable in the current tool environment, so repeatable browser-interaction automation remains an infrastructure follow-up rather than an untested authorization rule.
+
+The next product slice is the invitation/password-setup workflow so administrator- and Client Owner-created invited users can activate their accounts and sign in.
 
 ## Initial database model
 

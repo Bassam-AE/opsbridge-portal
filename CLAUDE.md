@@ -18,7 +18,7 @@ This is a security-sensitive Service Operations Portal. These docs are authorita
 | `PERMISSIONS.md` | Any protected route/service/data-access change — permission vocabulary, decision order, role matrix |
 | `DESIGN.md` | UI/layout changes — shell, responsive rules, components, visual language |
 
-If instructions conflict, protect security and owner-approved locked decisions first. Do not silently decide the two items marked "requires owner confirmation" in `AI_HANDOFF.md` (client-admin user creation; production session/password policy).
+If instructions conflict, protect security and owner-approved locked decisions first. Do not silently decide the production session/password policy marked "requires owner confirmation" in `AI_HANDOFF.md`.
 
 ## Commands
 

@@ -1,10 +1,13 @@
 "use client";
 
-import { Clock3, Menu, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Building2, Clock3, Menu, Moon, Sun, UsersRound } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { getPortalPageTitle } from "@/components/layout/portal-navigation";
+import { returnToProviderPortalAction } from "@/app/(portal)/context-actions";
+import type { ClientContextOption } from "@/lib/client-context";
 
 const utilityButtonClass =
   "relative grid size-9 cursor-pointer place-items-center rounded-xl text-slate-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600";
@@ -25,11 +28,19 @@ function getServerThemeSnapshot() {
 }
 
 type TopNavigationProps = {
+  accountType: "internal" | "client";
+  clientContexts: ClientContextOption[];
+  currentClientId: string | null;
+  canManageCompanyUsers: boolean;
   isSidebarExpanded: boolean;
   onMenuToggle: () => void;
 };
 
 export function TopNavigation({
+  accountType,
+  clientContexts,
+  currentClientId,
+  canManageCompanyUsers,
   isSidebarExpanded,
   onMenuToggle,
 }: TopNavigationProps) {
@@ -41,6 +52,7 @@ export function TopNavigation({
     getServerThemeSnapshot,
   );
   const [now, setNow] = useState<Date | null>(null);
+  const currentClient = clientContexts.find(({ id }) => id === currentClientId);
 
   useEffect(() => {
     const initialClock = window.setTimeout(() => setNow(new Date()), 0);
@@ -90,9 +102,68 @@ export function TopNavigation({
         <h1 className="truncate text-lg font-bold tracking-[-0.02em] text-slate-800 sm:text-xl">
           {pageTitle}
         </h1>
+        {accountType === "internal" && !currentClient ? (
+          <div
+            aria-label="Provider context: Blindly Digital"
+            className="hidden h-10 items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm lg:flex"
+          >
+            <Building2 aria-hidden="true" className="size-4 text-emerald-500" strokeWidth={1.8} />
+            Blindly Digital
+          </div>
+        ) : null}
+        {currentClient ? (
+          <div className="hidden items-center gap-2 lg:flex">
+            <div
+              aria-label={`Current company: ${currentClient.name}`}
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm"
+            >
+              <Building2 aria-hidden="true" className="size-4 text-emerald-500" strokeWidth={1.8} />
+              <span className="max-w-48 truncate">{currentClient.name}</span>
+            </div>
+            {accountType === "internal" ? (
+              <form action={returnToProviderPortalAction}>
+                <button
+                  type="submit"
+                  className="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-emerald-200 hover:text-emerald-600"
+                >
+                  <ArrowLeft aria-hidden="true" className="size-4" />
+                  Blindly Digital
+                </button>
+              </form>
+            ) : canManageCompanyUsers ? (
+              <Link
+                href="/company/users"
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-emerald-200 hover:text-emerald-600"
+              >
+                <UsersRound aria-hidden="true" className="size-4" />
+                Company users
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-0.5 sm:gap-1.5">
+        {accountType === "internal" && currentClient ? (
+          <form action={returnToProviderPortalAction} className="lg:hidden">
+            <button
+              type="submit"
+              aria-label="Return to Blindly Digital portal"
+              className={utilityButtonClass}
+            >
+              <ArrowLeft aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />
+            </button>
+          </form>
+        ) : null}
+        {accountType === "client" && canManageCompanyUsers ? (
+          <Link
+            href="/company/users"
+            aria-label="Company users"
+            className={`${utilityButtonClass} lg:hidden`}
+          >
+            <UsersRound aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />
+          </Link>
+        ) : null}
         <button
           type="button"
           aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}

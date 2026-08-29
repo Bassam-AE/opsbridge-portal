@@ -13,8 +13,10 @@ import {
   userPermissionOverrides,
   users,
 } from "@/db/schema";
+import { ACTIONS } from "@/lib/rbac/actions";
+import { accountTypeCanAccessResource } from "@/lib/rbac/access-policy";
 import { type PermissionKey, isPermissionPair } from "@/lib/rbac/permissions";
-import { RESOURCE_DEFINITIONS } from "@/lib/rbac/resources";
+import { RESOURCE_DEFINITIONS, RESOURCES } from "@/lib/rbac/resources";
 import type {
   AuthorizationDecision,
   AuthorizationFacts,
@@ -87,6 +89,40 @@ async function findProviderRoleId(userId: string): Promise<string | null> {
   return providerRole?.roleId ?? null;
 }
 
+async function findAdminPreviewRoleId(userId: string): Promise<string | null> {
+  const [providerRole] = await db
+    .select({ roleId: internalUserRoles.roleId })
+    .from(internalUserRoles)
+    .innerJoin(
+      rolePermissions,
+      eq(internalUserRoles.roleId, rolePermissions.roleId),
+    )
+    .innerJoin(
+      permissions,
+      eq(rolePermissions.permissionId, permissions.id),
+    )
+    .where(
+      and(
+        eq(internalUserRoles.userId, userId),
+        eq(permissions.resource, RESOURCES.ADMIN_CONSOLE),
+        eq(permissions.action, ACTIONS.VIEW),
+      ),
+    )
+    .limit(1);
+
+  return providerRole?.roleId ?? null;
+}
+
+async function activeClientExists(clientId: string): Promise<boolean> {
+  const [client] = await db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(and(eq(clients.id, clientId), eq(clients.status, "active")))
+    .limit(1);
+
+  return Boolean(client);
+}
+
 async function findClientRoleId(
   userId: string,
   accountType: AccountType,
@@ -131,7 +167,12 @@ async function resolveScope(
   userId: string,
   accountType: AccountType,
   request: AuthorizationRequest,
+  allowAdminPagePreview: boolean,
 ): Promise<{ isValid: boolean; roleId: string | null }> {
+  if (!accountTypeCanAccessResource(accountType, request.resource)) {
+    return { isValid: false, roleId: null };
+  }
+
   const scope = RESOURCE_DEFINITIONS[request.resource].scope;
 
   if (scope === "provider") {
@@ -143,12 +184,25 @@ async function resolveScope(
   }
 
   if (scope === "client") {
-    if (!request.clientId) {
-      return { isValid: false, roleId: null };
+    if (request.clientId) {
+      const roleId = await findClientRoleId(userId, accountType, request.clientId);
+      if (roleId) {
+        return { isValid: true, roleId };
+      }
     }
 
-    const roleId = await findClientRoleId(userId, accountType, request.clientId);
-    return { isValid: roleId !== null, roleId };
+    if (allowAdminPagePreview && accountType === "internal") {
+      const previewRoleId = await findAdminPreviewRoleId(userId);
+      const clientIsValid = request.clientId
+        ? await activeClientExists(request.clientId)
+        : true;
+
+      if (previewRoleId && clientIsValid) {
+        return { isValid: true, roleId: previewRoleId };
+      }
+    }
+
+    return { isValid: false, roleId: null };
   }
 
   if (request.clientId === null) {
@@ -160,11 +214,23 @@ async function resolveScope(
   }
 
   const roleId = await findClientRoleId(userId, accountType, request.clientId);
-  return { isValid: roleId !== null, roleId };
+  if (roleId) {
+    return { isValid: true, roleId };
+  }
+
+  if (allowAdminPagePreview && accountType === "internal") {
+    const previewRoleId = await findAdminPreviewRoleId(userId);
+    if (previewRoleId && (await activeClientExists(request.clientId))) {
+      return { isValid: true, roleId: previewRoleId };
+    }
+  }
+
+  return { isValid: false, roleId: null };
 }
 
 async function loadAuthorizationFacts(
   request: AuthorizationRequest,
+  allowAdminPagePreview = false,
 ): Promise<LoadedAuthorizationFacts> {
   const permission = isPermissionPair(request.resource, request.action)
     ? (`${request.resource}:${request.action}` as PermissionKey)
@@ -207,6 +273,7 @@ async function loadAuthorizationFacts(
     identity.userId,
     identity.accountType,
     request,
+    allowAdminPagePreview,
   );
 
   if (!permission || !scope.isValid) {
@@ -333,15 +400,18 @@ async function recordDeniedAuthorization(
   }
 }
 
-export async function authorize(
+async function makeAuthorizationDecision(
   request: AuthorizationRequest,
-  options: { auditDenied?: boolean } = {},
+  options: { auditDenied?: boolean; allowAdminPagePreview?: boolean },
 ): Promise<AuthorizationDecision> {
   let actorUserId: string | null = null;
   let decision: AuthorizationDecision;
 
   try {
-    const loaded = await loadAuthorizationFacts(request);
+    const loaded = await loadAuthorizationFacts(
+      request,
+      options.allowAdminPagePreview,
+    );
     actorUserId = loaded.actorUserId;
     decision = evaluateAuthorization(loaded.facts);
   } catch {
@@ -357,4 +427,21 @@ export async function authorize(
   }
 
   return decision;
+}
+
+export async function authorize(
+  request: AuthorizationRequest,
+  options: { auditDenied?: boolean } = {},
+): Promise<AuthorizationDecision> {
+  return makeAuthorizationDecision(request, options);
+}
+
+export async function authorizePortalPageView(
+  request: Omit<AuthorizationRequest, "action">,
+  options: { auditDenied?: boolean } = {},
+): Promise<AuthorizationDecision> {
+  return makeAuthorizationDecision(
+    { ...request, action: ACTIONS.VIEW },
+    { ...options, allowAdminPagePreview: true },
+  );
 }

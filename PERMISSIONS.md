@@ -51,7 +51,7 @@ The TypeScript permission-key type includes only valid resource/action combinati
 | Resource | Scope | Valid actions |
 | --- | --- | --- |
 | Dashboard | Contextual | View |
-| Clients | Contextual | View, Create, Edit, Delete, Export |
+| Clients | Provider | View, Create, Edit, Delete, Export |
 | CRM | Client | View, Create, Edit, Delete, Export |
 | HRM | Client | View, Create, Edit, Delete, Approve, Export |
 | VMS | Client | View, Create, Edit, Delete, Approve, Export |
@@ -61,14 +61,14 @@ The TypeScript permission-key type includes only valid resource/action combinati
 | Marketing | Client | View, Create, Edit, Delete, Approve, Export |
 | Accounts | Client | View, Create, Edit, Delete, Approve, Export |
 | Admin Console | Provider | View, Manage Access |
-| Users | Provider | View, Create, Edit, Delete, Manage Access |
+| Users | Contextual | View, Create, Edit, Delete, Manage Access |
 | Roles | Provider | View, Create, Edit, Delete, Manage Access |
 | Permission Definitions | Provider | View |
 | Client Assignments | Provider | View, Create, Edit, Delete, Manage Access |
 | User Permission Overrides | Provider | View, Create, Edit, Delete, Manage Access |
 | Audit Logs | Provider | View, Export |
 
-Permission definitions are code-owned. The Admin Console will manage role-permission relationships and user overrides, but it will not create arbitrary permission names.
+Permission definitions are code-owned. The Admin Console manages role-permission relationships and user overrides, but it cannot create arbitrary permission names. It rejects incompatible role audiences and override scopes, protects the current administrator's role and overrides from self-change, and audits successful changes.
 
 ## Admin Console rule
 
@@ -78,6 +78,8 @@ The initial role matrix must grant these permissions only to internal Admin and 
 - `admin_console:manage_access`
 
 Access to the Admin Console route, navigation item, data reads, and mutations must all be checked independently through the central authorization service. Client users must never receive these provider-level permissions.
+
+Internal users whose provider role has `admin_console:view` may open a client-module page shell when that same provider role has the module's `view` permission. This keeps all approved Admin and CEO/CTO pages visible without granting unscoped client data access. Services, mutations, exports, and persistent records continue to require the exact client assignment or membership through the normal authorization path. This exception is permission-based and must never be implemented with role-name checks.
 
 ## Deny behavior
 
@@ -95,6 +97,7 @@ Invalid permission definition or failure  => DENY
 
 The current scope rules are:
 
+- Client-company accounts can receive permissions only for Dashboard, CRM, HRM, VMS, Vault, and Accounts. This audience boundary is checked before grants or role permissions, so stale incompatible relationships remain denied.
 - Provider resources require an active internal user and no client ID.
 - Client resources require an active client plus an active internal assignment or client membership for that exact client.
 - Contextual resources use the provider role when no client is selected and the applicable assignment or membership role when a client is selected.
@@ -106,7 +109,7 @@ The current scope rules are:
 
 The owner-approved least-privilege matrix is defined in `src/lib/rbac/role-permission-matrix.ts` and seeded for live authorization decisions.
 
-All internal client-module permissions below still require an active assignment to the selected client. Client Owner permissions work only inside the owner's own active company membership.
+All internal client-module permissions below still require an active assignment to the selected client. Client Owner and Client Employee permissions work only inside their own active company membership. The Owner's Users permissions are limited by the company-user service to listing and creating invited Employees in that same company.
 
 | Role | Proposed starting access |
 | --- | --- |
@@ -119,8 +122,9 @@ All internal client-module permissions below still require an active assignment 
 | Designer | Client view; Marketing create/edit/export; Vault create/edit; internal chat |
 | SME | View all assigned-client modules; internal chat; no approval, deletion, or export by default |
 | Sales | Client and CRM create/edit/export; Marketing view; internal chat |
-| Client Owner | View/edit/export own company record; full operational actions for CRM, HRM, VMS, BMS, Vault, Marketing, and Accounts in own company |
+| Client Owner | Dashboard view; full operational actions for CRM, HRM, VMS, Vault, and Accounts; view and create invited Employees in the owner's own company |
+| Client Employee | Read-only access to Dashboard, CRM, HRM, VMS, Vault, and Accounts in the employee's own company |
 
-Only CEO/CTO and Admin receive Admin Console or `manage_access` permissions. Non-executive internal roles receive no deletion permission in this draft. Client Owner can delete operational records within the owner's own company but cannot delete the company, access Internal Chat, or access provider administration.
+Only CEO/CTO and Admin receive Admin Console or `manage_access` permissions. Non-executive internal roles receive no deletion permission in this draft. Client Owner can delete records in the approved operational modules and create invited Employees within the owner's own company, but cannot access the Clients page, BMS, Marketing, Internal Chat, or provider administration.
 
 The matrix was approved as documented. Future changes must be made through authorized access administration and audited; rerunning the initial seed only inserts missing relationships and does not remove later administrative changes.

@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { portalNavigation } from "@/components/layout/portal-navigation";
 
 type AppSidebarProps = {
-  canAccessAdminConsole: boolean;
+  allowedNavigationHrefs: readonly string[];
   currentUser: {
     displayName: string;
     username: string | null;
@@ -26,14 +26,15 @@ function getInitials(displayName: string) {
 }
 
 export function AppSidebar({
-  canAccessAdminConsole,
+  allowedNavigationHrefs,
   currentUser,
   isExpanded,
   onNavigate,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const allowedHrefs = new Set(allowedNavigationHrefs);
   const visibleNavigation = portalNavigation.filter(
-    ({ href }) => href !== "/admin" || canAccessAdminConsole,
+    ({ href }) => allowedHrefs.has(href),
   );
 
   return (

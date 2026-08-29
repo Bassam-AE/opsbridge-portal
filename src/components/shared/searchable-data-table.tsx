@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Rows3, Search } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
@@ -16,6 +17,7 @@ type SearchableDataTableProps<Row> = {
   rows: readonly Row[];
   columns: readonly DataTableColumn<Row>[];
   getRowKey: (row: Row) => string;
+  getRowHref?: (row: Row) => string;
   getSearchText: (row: Row) => string;
   searchLabel: string;
   searchPlaceholder: string;
@@ -31,6 +33,7 @@ export function SearchableDataTable<Row>({
   rows,
   columns,
   getRowKey,
+  getRowHref,
   getSearchText,
   searchLabel,
   searchPlaceholder,
@@ -106,7 +109,16 @@ export function SearchableDataTable<Row>({
                 >
                   {columns.map((column) => (
                     <td key={column.id} className={`px-5 py-4 ${column.cellClassName ?? ""}`}>
-                      {column.cell(row)}
+                      {getRowHref ? (
+                        <Link
+                          href={getRowHref(row)}
+                          className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
+                        >
+                          {column.cell(row)}
+                        </Link>
+                      ) : (
+                        column.cell(row)
+                      )}
                     </td>
                   ))}
                 </tr>

@@ -10,6 +10,10 @@ import {
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { loginInputSchema } from "@/lib/validation/auth";
+import {
+  clientContextCookieName,
+  clientContextCookieOptions,
+} from "@/lib/client-context";
 
 const LOGIN_ERROR_PATH = "/login?error=invalid_credentials";
 const FALLBACK_PASSWORD_HASH = [
@@ -93,6 +97,11 @@ export async function POST(request: Request) {
   response.cookies.set(sessionCookieName, session.token, {
     ...sessionCookieOptions,
     expires: session.expiresAt,
+  });
+  response.cookies.set(clientContextCookieName, "", {
+    ...clientContextCookieOptions,
+    maxAge: 0,
+    expires: new Date(0),
   });
 
   return response;

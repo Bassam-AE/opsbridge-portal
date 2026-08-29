@@ -35,7 +35,9 @@ Every logo, navigation icon, user avatar, and logout icon stays on one fixed hor
 
 The sidebar is pure white in light mode and a raised navy surface in dark mode. The logout action appears above the profile at the bottom of the rail and always uses a red destructive treatment.
 
-The selected route uses an emerald background, white icon and label, and an indicator placed inside the absolute right edge of the sidebar. Indicators must not use negative offsets that create horizontal navigation overflow. Routes that a user cannot access will eventually be omitted based on centralized RBAC decisions. Hiding a route will remain a usability feature, not an authorization boundary.
+The selected route uses an emerald background, white icon and label, and an indicator placed inside the absolute right edge of the sidebar. Indicators must not use negative offsets that create horizontal navigation overflow. Routes that a user cannot access are omitted based on centralized RBAC decisions. Client-module links appear for BD employees only after an assigned client is entered. Hiding or showing a route remains a usability feature, not a data-authorization boundary; every page and server operation performs its own permission and client-scope check.
+
+Blindly Digital employees see provider navigation first and receive company-module links only after choosing an actively assigned client. Client-company employees are fixed to their own company and see only Dashboard, CRM, HRM, VMS, Vault, and Accounts. They never see the Clients page.
 
 Current navigation order:
 
@@ -156,6 +158,12 @@ Marketing is the exception. Its placeholder is an asset-category grid for Posts,
 ### Admin Console
 
 Admin Console is the landing page for user accounts, clients, assignments, roles and permissions, and audit records. Its overview cards link to searchable data views, and role rows expand to show their exact permission assignments. The Users and Clients views use a shared expandable creation panel, compact status actions, inline validation feedback, and soft lifecycle changes rather than destructive deletion. It is intended only for internal Admin and CEO/CTO users; both navigation visibility and every direct route require centralized access authorization, and each data service independently checks its own resource permission.
+
+The Assignments view uses tabs for internal employee assignments and client-user memberships. Both tabs reuse the expandable creation panel, searchable table, status actions, and compact inline access editor. Self-owned employee access is visibly protected from administrative mutation.
+
+On large screens, a static context card appears beside the page title. BD employees initially see `Blindly Digital`; it is not a dropdown. Client rows open detail pages, and an assigned employee enters a client portal from there. The card then shows that client's name and offers a return to the Blindly Digital portal. Client users see their own company name but no provider-context card or Clients page. Context controls are not an authorization boundary; pages and services independently validate the selected client.
+
+Client Owners receive a Company users link beside their current-company card. The page lists only their own active company membership and creates invited Employee accounts without exposing a client, account-type, or role selector.
 
 ## Shared components
 

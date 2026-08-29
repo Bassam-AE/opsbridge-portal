@@ -8,11 +8,16 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { DashboardGrid } from "@/components/layout/dashboard-grid";
 import { TopNavigation } from "@/components/layout/top-navigation";
 import { WelcomeHeader } from "@/components/layout/welcome-header";
+import type { ClientContextOption } from "@/lib/client-context";
 
 type DashboardShellProps = {
   children?: ReactNode;
-  canAccessAdminConsole: boolean;
+  allowedNavigationHrefs: readonly string[];
+  clientContexts: ClientContextOption[];
+  currentClientId: string | null;
+  canManageCompanyUsers: boolean;
   currentUser: {
+    accountType: "internal" | "client";
     displayName: string;
     username: string | null;
   };
@@ -20,7 +25,10 @@ type DashboardShellProps = {
 
 export function DashboardShell({
   children,
-  canAccessAdminConsole,
+  allowedNavigationHrefs,
+  clientContexts,
+  currentClientId,
+  canManageCompanyUsers,
   currentUser,
 }: DashboardShellProps) {
   const pathname = usePathname();
@@ -46,7 +54,7 @@ export function DashboardShell({
     <div className="relative flex h-dvh w-full overflow-hidden bg-[#FAFCFB] dark:bg-[#101a2c]">
       <div className="relative z-30 w-16 shrink-0 sm:w-20">
         <AppSidebar
-          canAccessAdminConsole={canAccessAdminConsole}
+          allowedNavigationHrefs={allowedNavigationHrefs}
           currentUser={currentUser}
           isExpanded={isSidebarExpanded}
           onNavigate={() => setIsSidebarExpanded(false)}
@@ -62,6 +70,10 @@ export function DashboardShell({
       ) : null}
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNavigation
+          accountType={currentUser.accountType}
+          canManageCompanyUsers={canManageCompanyUsers}
+          clientContexts={clientContexts}
+          currentClientId={currentClientId}
           isSidebarExpanded={isSidebarExpanded}
           onMenuToggle={() => setIsSidebarExpanded((isExpanded) => !isExpanded)}
         />

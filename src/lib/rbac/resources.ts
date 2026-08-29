@@ -28,7 +28,7 @@ export type ResourceDefinition = {
 
 export const RESOURCE_DEFINITIONS = {
   [RESOURCES.DASHBOARD]: { label: "Dashboard", scope: "contextual" },
-  [RESOURCES.CLIENTS]: { label: "Clients", scope: "contextual" },
+  [RESOURCES.CLIENTS]: { label: "Clients", scope: "provider" },
   [RESOURCES.CRM]: { label: "CRM", scope: "client" },
   [RESOURCES.HRM]: { label: "HRM", scope: "client" },
   [RESOURCES.VMS]: { label: "VMS", scope: "client" },
@@ -38,7 +38,7 @@ export const RESOURCE_DEFINITIONS = {
   [RESOURCES.MARKETING]: { label: "Marketing", scope: "client" },
   [RESOURCES.ACCOUNTS]: { label: "Accounts", scope: "client" },
   [RESOURCES.ADMIN_CONSOLE]: { label: "Admin Console", scope: "provider" },
-  [RESOURCES.USERS]: { label: "Users", scope: "provider" },
+  [RESOURCES.USERS]: { label: "Users", scope: "contextual" },
   [RESOURCES.ROLES]: { label: "Roles", scope: "provider" },
   [RESOURCES.PERMISSIONS]: { label: "Permissions", scope: "provider" },
   [RESOURCES.CLIENT_ASSIGNMENTS]: {

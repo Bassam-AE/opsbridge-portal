@@ -54,7 +54,6 @@ describe("initial role-permission matrix", () => {
     const providerPrefixes = [
       "internal_chat:",
       "admin_console:",
-      "users:",
       "roles:",
       "permissions:",
       "client_assignments:",
@@ -67,5 +66,28 @@ describe("initial role-permission matrix", () => {
         providerPrefixes.some((prefix) => permission.startsWith(prefix)),
       ),
     ).toBe(false);
+  });
+
+  it("limits the Client Owner to the approved company portal modules", () => {
+    const ownerResources = new Set(
+      INITIAL_ROLE_PERMISSION_MATRIX.client_owner.map((permission) =>
+        permission.slice(0, permission.indexOf(":")),
+      ),
+    );
+
+    expect(ownerResources).toEqual(
+      new Set(["dashboard", "users", "crm", "hrm", "vms", "vault", "accounts"]),
+    );
+  });
+
+  it("gives client employees read-only access to approved company modules", () => {
+    expect(INITIAL_ROLE_PERMISSION_MATRIX.client_employee).toEqual([
+      "dashboard:view",
+      "crm:view",
+      "hrm:view",
+      "vms:view",
+      "vault:view",
+      "accounts:view",
+    ]);
   });
 });

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { hashPassword } from "../lib/auth/password";
 import { permissionDefinitions, type PermissionKey } from "../lib/rbac/permissions";
@@ -11,25 +11,57 @@ import {
 } from "../lib/rbac/roles";
 import { db, sqlite } from "./index";
 import {
+  clientMemberships,
+  clients,
+  employeeClientAssignments,
   internalUserRoles,
   permissions,
   rolePermissions,
   roles,
+  userPermissionOverrides,
   users,
 } from "./schema";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin";
+const BLINDLY_USERNAME = "blindly";
+const BLINDLY_PASSWORD = "blindly";
+const COMPANY_USERNAME = "company";
+const COMPANY_PASSWORD = "company";
+const DEMO_CLIENT_CODE = "COMPANY";
 
 async function seedInitialAccess() {
   const [existingAdmin] = await db
-    .select({ id: users.id })
+    .select({ id: users.id, accountType: users.accountType })
     .from(users)
     .where(eq(users.username, ADMIN_USERNAME))
     .limit(1);
+  const [existingBlindly] = await db
+    .select({ id: users.id, accountType: users.accountType })
+    .from(users)
+    .where(eq(users.username, BLINDLY_USERNAME))
+    .limit(1);
+  const [existingCompany] = await db
+    .select({ id: users.id, accountType: users.accountType })
+    .from(users)
+    .where(eq(users.username, COMPANY_USERNAME))
+    .limit(1);
+
+  if (existingBlindly && existingBlindly.accountType !== "internal") {
+    throw new Error("The existing blindly user is not an internal account.");
+  }
+
+  if (existingCompany && existingCompany.accountType !== "client") {
+    throw new Error("The existing company user is not a client account.");
+  }
+
   const adminPasswordHash = existingAdmin
     ? null
     : await hashPassword(ADMIN_PASSWORD);
+  const [blindlyPasswordHash, companyPasswordHash] = await Promise.all([
+    existingBlindly ? Promise.resolve(null) : hashPassword(BLINDLY_PASSWORD),
+    existingCompany ? Promise.resolve(null) : hashPassword(COMPANY_PASSWORD),
+  ]);
   const now = new Date().toISOString();
 
   const result = db.transaction((transaction) => {
@@ -199,11 +231,210 @@ async function seedInitialAccess() {
         .run();
     }
 
+    const [existingDemoClient] = transaction
+      .select({ id: clients.id })
+      .from(clients)
+      .where(eq(clients.clientCode, DEMO_CLIENT_CODE))
+      .limit(1)
+      .all();
+    let demoClientId = existingDemoClient?.id;
+    let createdDemoClient = false;
+
+    if (!demoClientId) {
+      demoClientId = crypto.randomUUID();
+      transaction
+        .insert(clients)
+        .values({
+          id: demoClientId,
+          clientCode: DEMO_CLIENT_CODE,
+          name: "Client Company",
+          countryCode: "IN",
+          clientType: "Demo",
+          status: "active",
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      createdDemoClient = true;
+    }
+
+    let blindlyUserId = existingBlindly?.id;
+    let createdBlindly = false;
+
+    if (!blindlyUserId) {
+      if (!blindlyPasswordHash) {
+        throw new Error("The local Blindly Digital password hash was not created.");
+      }
+
+      blindlyUserId = crypto.randomUUID();
+      transaction
+        .insert(users)
+        .values({
+          id: blindlyUserId,
+          username: BLINDLY_USERNAME,
+          email: "blindly@localhost.invalid",
+          displayName: "Blindly Digital Employee",
+          accountType: "internal",
+          status: "active",
+          passwordHash: blindlyPasswordHash,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      createdBlindly = true;
+    }
+
+    const internalEmployeeRoleId = roleIds.get(ROLE_KEYS.INTERNAL_SME);
+    if (!internalEmployeeRoleId) {
+      throw new Error("The internal SME role was not seeded.");
+    }
+
+    const [existingBlindlyRole] = transaction
+      .select({ roleId: internalUserRoles.roleId })
+      .from(internalUserRoles)
+      .where(eq(internalUserRoles.userId, blindlyUserId))
+      .limit(1)
+      .all();
+
+    if (!existingBlindlyRole) {
+      transaction
+        .insert(internalUserRoles)
+        .values({
+          userId: blindlyUserId,
+          roleId: internalEmployeeRoleId,
+          assignedByUserId: adminUserId,
+          assignedAt: now,
+        })
+        .run();
+    }
+
+    const [existingBlindlyAssignment] = transaction
+      .select({ id: employeeClientAssignments.id })
+      .from(employeeClientAssignments)
+      .where(
+        and(
+          eq(employeeClientAssignments.userId, blindlyUserId),
+          eq(employeeClientAssignments.clientId, demoClientId),
+        ),
+      )
+      .limit(1)
+      .all();
+
+    if (!existingBlindlyAssignment) {
+      transaction
+        .insert(employeeClientAssignments)
+        .values({
+          userId: blindlyUserId,
+          clientId: demoClientId,
+          roleId: internalEmployeeRoleId,
+          status: "active",
+          assignedByUserId: adminUserId,
+          assignedAt: now,
+        })
+        .run();
+    }
+
+    let createdBlindlyRestrictions = 0;
+    for (const permissionKey of ["bms:view", "marketing:view"] as const) {
+      const permissionId = permissionIds.get(permissionKey);
+      if (!permissionId) {
+        throw new Error(`Missing seeded permission: ${permissionKey}`);
+      }
+
+      const [existingOverride] = transaction
+        .select({ id: userPermissionOverrides.id })
+        .from(userPermissionOverrides)
+        .where(
+          and(
+            eq(userPermissionOverrides.userId, blindlyUserId),
+            eq(userPermissionOverrides.clientId, demoClientId),
+            eq(userPermissionOverrides.permissionId, permissionId),
+          ),
+        )
+        .limit(1)
+        .all();
+
+      if (existingOverride) {
+        continue;
+      }
+
+      transaction
+        .insert(userPermissionOverrides)
+        .values({
+          id: crypto.randomUUID(),
+          userId: blindlyUserId,
+          clientId: demoClientId,
+          permissionId,
+          effect: "restriction",
+          reason: "Limit the demo employee to the approved company modules.",
+          createdByUserId: adminUserId,
+          createdAt: now,
+        })
+        .run();
+      createdBlindlyRestrictions += 1;
+    }
+
+    let companyUserId = existingCompany?.id;
+    let createdCompany = false;
+
+    if (!companyUserId) {
+      if (!companyPasswordHash) {
+        throw new Error("The local client-company password hash was not created.");
+      }
+
+      companyUserId = crypto.randomUUID();
+      transaction
+        .insert(users)
+        .values({
+          id: companyUserId,
+          username: COMPANY_USERNAME,
+          email: "company@localhost.invalid",
+          displayName: "Client Company Employee",
+          accountType: "client",
+          status: "active",
+          passwordHash: companyPasswordHash,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      createdCompany = true;
+    }
+
+    const clientOwnerRoleId = roleIds.get(ROLE_KEYS.CLIENT_OWNER);
+    if (!clientOwnerRoleId) {
+      throw new Error("The client Owner role was not seeded.");
+    }
+
+    const [existingCompanyMembership] = transaction
+      .select({ id: clientMemberships.id })
+      .from(clientMemberships)
+      .where(eq(clientMemberships.userId, companyUserId))
+      .limit(1)
+      .all();
+
+    if (!existingCompanyMembership) {
+      transaction
+        .insert(clientMemberships)
+        .values({
+          userId: companyUserId,
+          clientId: demoClientId,
+          roleId: clientOwnerRoleId,
+          status: "active",
+          assignedByUserId: adminUserId,
+          joinedAt: now,
+        })
+        .run();
+    }
+
     return {
       createdRoles,
       createdPermissions,
       createdRolePermissions,
       createdAdmin,
+      createdDemoClient,
+      createdBlindly,
+      createdBlindlyRestrictions,
+      createdCompany,
     };
   });
 
@@ -211,9 +442,29 @@ async function seedInitialAccess() {
     `Seed complete: ${result.createdRoles} roles, ${result.createdPermissions} permissions, and ${result.createdRolePermissions} role assignments added.`,
   );
   console.info(
+    result.createdBlindlyRestrictions > 0
+      ? `Added ${result.createdBlindlyRestrictions} company-module restrictions for the Blindly Digital employee.`
+      : "Blindly Digital employee module restrictions already exist; they were not changed.",
+  );
+  console.info(
     result.createdAdmin
       ? "Created local Admin account (username: admin, password: admin)."
       : "Local Admin already exists; its password and role were not changed.",
+  );
+  console.info(
+    result.createdDemoClient
+      ? "Created demo client company (code: COMPANY)."
+      : "Demo client company already exists; it was not changed.",
+  );
+  console.info(
+    result.createdBlindly
+      ? "Created Blindly Digital employee account (username: blindly, password: blindly)."
+      : "Blindly Digital employee already exists; its password and access were not changed.",
+  );
+  console.info(
+    result.createdCompany
+      ? "Created client-company account (username: company, password: company)."
+      : "Client-company account already exists; its password and access were not changed.",
   );
 }
 

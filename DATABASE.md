@@ -2,7 +2,7 @@
 
 ## Status
 
-The initial SQLite schema is implemented in Drizzle. The first generated migration is applied to the local development database. The temporary local Admin account, ten canonical roles, 75 permission definitions, and the approved initial role-permission relationships are seeded.
+The initial SQLite schema is implemented in Drizzle. The first generated migration is applied to the local development database. The temporary local Admin account, Blindly Digital employee account, Client Company Owner account, demo client company, eleven canonical roles, 75 permission definitions, and the approved initial role-permission relationships are seeded.
 
 The design intentionally uses portable relationships, text identifiers, explicit join tables, constraints, and indexes so a later PostgreSQL migration is controlled and straightforward. A later migration will still require planned type conversion and deployment work; it is not automatic.
 
@@ -78,7 +78,7 @@ Admin Console access is initially reserved for `internal_admin` and `internal_ce
 
 ## Authorization representation
 
-Permissions are stored as unique `resource + action` pairs. The canonical resources, valid actions, and scope metadata are defined in `src/lib/rbac` and documented in `PERMISSIONS.md`. Permission records have not been seeded.
+Permissions are stored as unique `resource + action` pairs. The canonical resources, valid actions, and scope metadata are defined in `src/lib/rbac` and documented in `PERMISSIONS.md`. Canonical permission records and the approved starting role relationships are seeded additively; authorized later changes are not removed when the seed is rerun.
 
 A user's effective authorization will be evaluated in this order:
 
@@ -98,6 +98,8 @@ User overrides support:
 - The administrator who created the override.
 
 Partial unique indexes prevent duplicate global and client-scoped overrides.
+
+The Admin Console manages role-permission relationships and overrides without changing the schema or inventing permission names. Successful changes and revocations are audited. Expired overrides remain in the database for administrative history but are ignored by authorization decisions.
 
 ## Portability decisions
 
@@ -134,7 +136,7 @@ Please confirm these schema assumptions:
 1. Each internal employee has one provider-wide role.
 2. Each internal employee has at most one role per assigned client, and that role may differ by client.
 3. Each client employee belongs to exactly one client company.
-4. `Owner` is the only initial client role.
+4. `Owner` and read-only `Employee` are the initial client roles.
 5. “Company Secretary” is the intended spelling.
 
-The canonical permission vocabulary and initial role matrix are approved and seeded. The seed is additive and idempotent: rerunning it inserts missing canonical records without resetting the existing Admin password, changing the Admin's role, or deleting later access changes.
+The canonical permission vocabulary and initial role matrix are approved and seeded. The seed is additive and idempotent: rerunning it inserts missing canonical records and demo relationships without resetting existing bootstrap passwords, replacing roles or relationships, or deleting later access changes.

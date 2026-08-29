@@ -1,6 +1,6 @@
 "use client";
 
-import { UsersRound } from "lucide-react";
+import { Building2 } from "lucide-react";
 
 import {
   type DataTableColumn,
@@ -8,23 +8,13 @@ import {
   SearchableDataTable,
   TablePill,
 } from "@/components/shared/searchable-data-table";
+import type { ClientListItem } from "@/services/clients";
 
-const clients = [
-  { id: "CL-1001", name: "Northstar Retail", country: "United Arab Emirates", countryCode: "AE", type: "Retail", kam: "Leena Mathew", spoc: "Omar Rahman", userSince: "Jan 2022" },
-  { id: "CL-1002", name: "Brightline Studios", country: "India", countryCode: "IN", type: "Creative Agency", kam: "Nadia Khan", spoc: "Rohit Menon", userSince: "May 2022" },
-  { id: "CL-1003", name: "Cedar Health Group", country: "Saudi Arabia", countryCode: "SA", type: "Healthcare", kam: "Ayaan Joseph", spoc: "Sara Al-Harbi", userSince: "Nov 2022" },
-  { id: "CL-1004", name: "Meridian Logistics", country: "Qatar", countryCode: "QA", type: "Logistics", kam: "Leena Mathew", spoc: "Faris Ahmed", userSince: "Mar 2023" },
-  { id: "CL-1005", name: "Canvas Hospitality", country: "Bahrain", countryCode: "BH", type: "Hospitality", kam: "Nadia Khan", spoc: "Maya Thomas", userSince: "Sep 2023" },
-  { id: "CL-1006", name: "Greenfield Technologies", country: "Singapore", countryCode: "SG", type: "Technology", kam: "Ayaan Joseph", spoc: "Daniel Lim", userSince: "Feb 2024" },
-] as const;
-
-type Client = (typeof clients)[number];
-
-const columns: readonly DataTableColumn<Client>[] = [
+const columns: readonly DataTableColumn<ClientListItem>[] = [
   {
     id: "id",
     header: "Client ID",
-    cell: (client) => client.id,
+    cell: (client) => client.clientCode,
     cellClassName: "font-mono text-xs font-medium text-slate-400",
   },
   {
@@ -36,34 +26,53 @@ const columns: readonly DataTableColumn<Client>[] = [
     id: "country",
     header: "Country",
     cell: (client) => (
-      <span className="flex items-center gap-2 text-sm text-slate-600">
-        <span className="grid size-7 place-items-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
-          {client.countryCode}
-        </span>
-        {client.country}
+      <span className="grid size-8 place-items-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
+        {client.countryCode}
       </span>
     ),
   },
-  { id: "type", header: "Type", cell: (client) => <TablePill>{client.type}</TablePill> },
-  { id: "kam", header: "KAM", cell: (client) => client.kam, cellClassName: "text-sm text-slate-600" },
-  { id: "spoc", header: "SPOC", cell: (client) => client.spoc, cellClassName: "text-sm text-slate-600" },
-  { id: "userSince", header: "User since", cell: (client) => client.userSince, cellClassName: "text-sm whitespace-nowrap text-slate-500" },
+  {
+    id: "type",
+    header: "Type",
+    cell: (client) => <TablePill>{client.clientType}</TablePill>,
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: (client) => <TablePill>{client.status}</TablePill>,
+    cellClassName: "capitalize",
+  },
+  {
+    id: "created",
+    header: "Client since",
+    cell: (client) => client.createdAt.slice(0, 10),
+    cellClassName: "text-sm whitespace-nowrap text-slate-500",
+  },
 ];
 
-export function ClientsTable() {
+export function ClientsTable({ clients }: { clients: readonly ClientListItem[] }) {
   return (
     <SearchableDataTable
       rows={clients}
       columns={columns}
       getRowKey={(client) => client.id}
-      getSearchText={(client) => Object.values(client).join(" ")}
+      getRowHref={(client) => `/clients/${client.id}`}
+      getSearchText={(client) =>
+        [
+          client.clientCode,
+          client.name,
+          client.countryCode,
+          client.clientType,
+          client.status,
+        ].join(" ")
+      }
       searchLabel="Search clients"
-      searchPlaceholder="Search by client ID, name, country, KAM or SPOC..."
+      searchPlaceholder="Search by client ID, name, country, type, or status..."
       itemLabel="client"
-      countIcon={UsersRound}
-      emptyTitle="No clients found"
-      emptyDescription="Try a different name, ID, or contact."
-      tableClassName="min-w-[1040px]"
+      countIcon={Building2}
+      emptyTitle="No clients available"
+      emptyDescription="Only active client companies assigned to you appear here."
+      tableClassName="min-w-[820px]"
     />
   );
 }

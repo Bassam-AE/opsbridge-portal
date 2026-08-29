@@ -112,6 +112,7 @@ export async function listRolesWithPermissions(rawInput: PaginatedListInput) {
     ? await db
         .select({
           roleId: rolePermissions.roleId,
+          permissionId: permissions.id,
           resource: permissions.resource,
           action: permissions.action,
         })
@@ -125,7 +126,7 @@ export async function listRolesWithPermissions(rawInput: PaginatedListInput) {
       ...role,
       permissions: permissionRows
         .filter(({ roleId }) => roleId === role.id)
-        .map(({ resource, action }) => ({ resource, action })),
+        .map(({ permissionId, resource, action }) => ({ permissionId, resource, action })),
     }));
   const normalizedSearch = input.search.toLowerCase();
   const filteredRoles = normalizedSearch

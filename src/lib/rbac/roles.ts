@@ -9,6 +9,7 @@ export const ROLE_KEYS = {
   INTERNAL_SME: "internal_sme",
   INTERNAL_SALES: "internal_sales",
   CLIENT_OWNER: "client_owner",
+  CLIENT_EMPLOYEE: "client_employee",
 } as const;
 
 export type RoleKey = (typeof ROLE_KEYS)[keyof typeof ROLE_KEYS];
@@ -70,6 +71,11 @@ export const ROLE_DEFINITIONS = {
     name: "Owner",
     audience: "client",
     description: "Full operational access within the owner's own client company.",
+  },
+  [ROLE_KEYS.CLIENT_EMPLOYEE]: {
+    name: "Employee",
+    audience: "client",
+    description: "Read-only module access within the employee's own client company.",
   },
 } as const satisfies Record<RoleKey, RoleDefinition>;
 
